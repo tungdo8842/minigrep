@@ -1,24 +1,58 @@
 use std::env;
 use std::fs;
+use std::process;
+use std::error::Error;
+
+use minigrep::search;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    // will change as more functionality is added
-    if args.len() != 3 {
-        println!("Usage: minigrep <query> <file_path>");
-        return;
+    // old argument error handling code
+    // if args.len() != 3 {
+    //     println!("Usage: minigrep <query> <file_path>");
+    //     return;
+    // }
+
+    // easier for future changes
+    let config: Config = Config::build(&args).unwrap_or_else(|err| {
+        println!("Problem parsing arguments: {err}");
+        process::exit(1);
+    });
+
+    if let Err(e) = run(config) {
+        println!("Application error: {e}");
+        process::exit(1);
+    }
+}
+
+fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    let contents = fs::read_to_string(config.file_path)?;
+
+    println!("Debug: File content: \n\n{}", contents);
+
+    for line in search(&config.query, &contents) {
+        println!("{line}");
     }
 
-    // initial implementation of argument parsing, will refactor
-    // let query = &args[1];
-    let file_path = &args[2];
+    Ok(()) // for error handling
+}
 
-    // print!("Searching for {}", query);
-    // println!(" in file {}", file_path);
+struct Config {
+    query: String,
+    file_path: String,
+}
 
-    let content = fs::read_to_string(file_path)
-        .expect("File not readable");
+impl Config {
+    fn build(args: &[String]) -> Result<Config, &'static str> {
+        if args.len() < 3 {
+            println!("Usage: minigrep <query> <file_path>");
+            return Err("not enough arguments");
+        }
 
-    println!("File content: \n\n{}", content);
+        let query = args[1].clone();
+        let file_path = args[2].clone();
+
+        Ok(Config {query, file_path})
+    }
 }
